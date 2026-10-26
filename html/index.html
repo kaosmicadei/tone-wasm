@@ -1,14 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tone Generator</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tone Generator</title>
 </head>
+
 <body>
+  <button id="play">Play Tone</button>
   <script type="module">
     const wasm = await WebAssembly.instantiateStreaming(fetch('./tone.wasm'));
     const { instance } = wasm;
+    const pulse = instance.exports;
+
+    const ctx = new AudioContext();
+
+    const sampleRate = ctx.sampleRate;
+    const seconds = 2;
+    const frameCount = sampleRate * seconds;
+    console.log(`Sample rate: ${sampleRate}`);
+    pulse.set_sample_rate(sampleRate);
+
+    // Create an audio buffer with 1 channel (mono)
+    const buffer = ctx.createBuffer(1, frameCount, sampleRate);
+
+    const data = buffer.getChannelData(0);
+
+    const frequency = 440; // A4 note
+    function oscillator(i) {
+        const t = i / sampleRate;
+        return Math.sin(2 * Math.PI * frequency * t);
+    }
+
+    // Fill the buffer with the generated waveform
+    for (let i = 0; i < frameCount; i++) {
+        let amp = 0.3;
+        data[i] = amp * pulse.envelope(5, 5, i) * oscillator(i);
+    }
+
+    // Wire a source node to the buffer, connect to speakers, play.
+    function playTone() {
+        const source = ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(ctx.destination);
+        source.start();
+    }
+
+    document.getElementById('play').addEventListener('click', () => {
+        if (ctx.state === 'suspended') ctx.resume();
+        playTone();
+    });
   </script>
 </body>
+
 </html>
