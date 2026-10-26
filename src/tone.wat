@@ -1,4 +1,6 @@
 (module
+  (import "Math" "sin" (func $js_sin (param f32) (result f32)))
+
   (memory (export "memory") 1)
 
   (global $sample_rate (mut f32) (f32.const 48000))
@@ -54,8 +56,20 @@
     f32.mul                            ;; x * (1 - 1/6 * x^2 * (middle))
   )
 
-  ;; NOT WORKING!!! The sine approximation is not accurate enough for "long"
-  ;; durations or high frequencies.
+  ;; f32 remainder function: x - trunc(x / y) * y
+  (func $remainder (param $x f32) (param $y f32) (result f32)
+    local.get $x
+    ;;---
+    local.get $x
+    local.get $y
+    f32.div        ;; x / y
+    f32.trunc      ;; trunc(x / y)
+    local.get $y
+    f32.mul        ;; trunc(x / y) * y
+    ;; ---
+    f32.sub        ;; x - trunc(x / y) * y
+  )
+
   (func $sine_wave (param $freq f32) (param $i f32) (result f32)
     local.get $i
     global.get $sample_rate
@@ -64,7 +78,13 @@
     f32.const 6.283185307179586  ;; 2 * pi
     f32.mul
     f32.mul
-    call $sin
+    
+    ;; ;; Not working because the sine approximation is only good up to pi...
+    ;; f32.const 6.283185307179586  ;; 2 * pi
+    ;; call $remainder
+    ;; call $sin
+
+    call $js_sin
   )
 
   (func $attack (param $dur f32) (param $i f32) (result f32)
